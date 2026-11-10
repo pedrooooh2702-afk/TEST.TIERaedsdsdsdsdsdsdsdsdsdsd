@@ -8,6 +8,7 @@ const MODES = [
     "MACE",
     "NETHERITE POT",
     "AXE"
+    "SPEAR MACE",
 ];
 
 const REGIONS = [
