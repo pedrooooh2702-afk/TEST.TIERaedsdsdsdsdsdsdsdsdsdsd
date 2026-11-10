@@ -1,0 +1,225 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEST TIER | Minecraft PvP</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="navbar">
+    <div class="logo">TEST <span>TIER</span></div>
+    <button class="staff-btn" onclick="openStaff()">STAFF LOGIN</button>
+</header>
+
+<main class="container">
+
+    <section class="hero">
+        <span class="eyebrow">MINECRAFT COMPETITIVE</span>
+        <h1>TEST <span>TIER</span></h1>
+        <p>Encontre jogadores, confira tiers e acompanhe os rankings.</p>
+    </section>
+
+    <section class="stats">
+        <div class="stat">
+            <span>JOGADORES</span>
+            <strong id="totalPlayers">0</strong>
+        </div>
+        <div class="stat">
+            <span>TESTES REGISTRADOS</span>
+            <strong id="totalTests">0</strong>
+        </div>
+        <div class="stat">
+            <span>MODALIDADES</span>
+            <strong>6</strong>
+        </div>
+        <div class="stat">
+            <span>TEMPORADA</span>
+            <strong id="seasonDisplay">S1</strong>
+        </div>
+    </section>
+
+    <section class="ranking">
+
+        <div class="ranking-heading">
+            <div>
+                <span class="eyebrow">COMPETITIVE LEADERBOARD</span>
+                <h2>RANKING DE JOGADORES</h2>
+                <p>Todos os jogadores avaliados pela equipe TEST TIER.</p>
+            </div>
+        </div>
+
+        <nav class="modes" id="modeTabs">
+            <button class="mode active" data-mode="GERAL">GERAL</button>
+            <button class="mode" data-mode="CRYSTAL">⬡ CRYSTAL</button>
+            <button class="mode" data-mode="SWORD">⚔ SWORD</button>
+            <button class="mode" data-mode="SMP">◈ SMP</button>
+            <button class="mode" data-mode="MACE">✣ MACE</button>
+            <button class="mode" data-mode="NETHERITE POT">⚗ NETHERITE POT</button>
+            <button class="mode" data-mode="AXE">♜ AXE</button>
+        </nav>
+
+        <div class="filters">
+            <input id="searchInput" type="search"
+                placeholder="Pesquisar jogador pelo nick...">
+
+            <select id="regionFilter">
+                <option value="">Todas as regiões</option>
+                <option>Brasil</option>
+                <option>Estados Unidos</option>
+                <option>México</option>
+                <option>Uruguai</option>
+                <option>Equador</option>
+                <option>Venezuela</option>
+                <option>Colômbia</option>
+                <option>Chile</option>
+                <option>Argentina</option>
+                <option>Espanha</option>
+            </select>
+        </div>
+
+        <div class="table-wrap">
+            <div class="table-header">
+                <span>#</span>
+                <span>JOGADOR</span>
+                <span>TIER</span>
+                <span>PONTOS</span>
+                <span>REGIÃO</span>
+                <span class="staff-column">AÇÕES</span>
+            </div>
+
+            <div id="playersList"></div>
+        </div>
+
+        <div class="footer-ranking">
+            <span id="resultCount">0 jogadores</span>
+            <span>TEST TIER RANKING</span>
+        </div>
+
+    </section>
+
+</main>
+
+<footer>
+    TEST TIER © 2026 — MINECRAFT COMPETITIVE RANKING
+</footer>
+
+<!-- LOGIN STAFF -->
+<div class="modal" id="loginModal">
+    <div class="modal-card">
+        <button class="close" onclick="closeModals()">×</button>
+        <span class="eyebrow">RESTRICTED ACCESS</span>
+        <h2>STAFF LOGIN</h2>
+        <p>Acesse o painel administrativo.</p>
+
+        <input type="password" id="staffPassword"
+            placeholder="Senha de acesso">
+
+        <button class="main-btn" onclick="checkPassword()">
+            ENTRAR NO PAINEL
+        </button>
+
+        <p class="error" id="loginError"></p>
+    </div>
+</div>
+
+<!-- PAINEL STAFF -->
+<div class="modal" id="staffModal">
+    <div class="modal-card large">
+        <button class="close" onclick="closeModals()">×</button>
+        <span class="eyebrow">ADMINISTRATION</span>
+        <h2>PAINEL DA STAFF</h2>
+
+        <div class="admin-tabs">
+            <button class="admin-tab active" onclick="showAdminTab('playerForm',this)">JOGADORES</button>
+            <button class="admin-tab" onclick="showAdminTab('seasonForm',this)">TEMPORADA</button>
+        </div>
+
+        <form id="playerForm" onsubmit="savePlayer(event)">
+            <h3 id="formTitle">ADICIONAR JOGADOR</h3>
+
+            <label>Nick do Minecraft</label>
+            <input id="playerName" maxlength="16"
+                placeholder="Ex: Steve123" required>
+
+            <div class="skin-preview">
+                <img id="skinPreview" alt="Cabeça da skin">
+                <span id="skinName">Prévia da skin</span>
+            </div>
+
+            <label>Modalidade</label>
+            <select id="playerMode" required>
+                <option>CRYSTAL</option>
+                <option>SWORD</option>
+                <option>SMP</option>
+                <option>MACE</option>
+                <option>NETHERITE POT</option>
+                <option>AXE</option>
+            </select>
+
+            <label>Tier</label>
+            <select id="playerTier" required>
+                <option>HT1</option>
+                <option>LT1</option>
+                <option>HT2</option>
+                <option>LT2</option>
+                <option>HT3</option>
+                <option>LT3</option>
+                <option>HT4</option>
+                <option>LT4</option>
+                <option>HT5</option>
+                <option>LT5</option>
+            </select>
+
+            <label>Pontos</label>
+            <input id="playerPoints" type="number" min="0" value="0" required>
+
+            <label>Região</label>
+            <select id="playerRegion" required>
+                <option>Brasil</option>
+                <option>Estados Unidos</option>
+                <option>México</option>
+                <option>Uruguai</option>
+                <option>Equador</option>
+                <option>Venezuela</option>
+                <option>Colômbia</option>
+                <option>Chile</option>
+                <option>Argentina</option>
+                <option>Espanha</option>
+            </select>
+
+            <label>Quantidade de testes registrados</label>
+            <input id="playerTests" type="number" min="0" value="1" required>
+
+            <button class="main-btn" type="submit" id="saveButton">
+                CADASTRAR JOGADOR
+            </button>
+
+            <button class="secondary-btn" type="button"
+                onclick="cancelEdit()">CANCELAR EDIÇÃO</button>
+
+            <p class="error" id="formError"></p>
+        </form>
+
+        <form id="seasonForm" class="hidden"
+            onsubmit="saveSeason(event)">
+            <h3>CONFIGURAR TEMPORADA</h3>
+            <label>Nome da temporada</label>
+            <input id="seasonName" maxlength="20"
+                placeholder="Ex: S2" required>
+            <button class="main-btn" type="submit">
+                SALVAR TEMPORADA
+            </button>
+        </form>
+
+        <button class="logout-btn" onclick="logoutStaff()">
+            SAIR DO PAINEL
+        </button>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
