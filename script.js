@@ -1,492 +1,201 @@
 
-const STAFF_PASSWORD = "TEST.TIER.PLAYER";
-
-const MODES = [
-    "CRYSTAL",
-    "SWORD",
-    "SMP",
-    "MACE",
-    "NETHERITE POT",
-    "AXE"
-];
-
-const REGIONS = [
-    "Brasil",
-    "Estados Unidos",
-    "México",
-    "Uruguai",
-    "Equador",
-    "Venezuela",
-    "Colômbia",
-    "Chile",
-    "Argentina",
-    "Espanha"
-];
-
-// CÓDIGOS DAS BANDEIRAS
-const REGION_FLAGS = {
-    "Brasil": "br",
-    "Estados Unidos": "us",
-    "México": "mx",
-    "Uruguai": "uy",
-    "Equador": "ec",
-    "Venezuela": "ve",
-    "Colômbia": "co",
-    "Chile": "cl",
-    "Argentina": "ar",
-    "Espanha": "es"
-};
-
-let players = loadData("testTierPlayers", []);
-let season = localStorage.getItem("testTierSeason") || "S1";
-let currentMode = "GERAL";
-let staffAuthenticated = false;
-let editingId = null;
-
-function loadData(key, fallback) {
-    try {
-        const data = JSON.parse(localStorage.getItem(key));
-        return Array.isArray(fallback) && Array.isArray(data)
-            ? data
-            : data ?? fallback;
-    } catch {
-        return fallback;
-    }
-}
-
-function saveData() {
-    localStorage.setItem("testTierPlayers", JSON.stringify(players));
-}
-
-function escapeHTML(value) {
-    return String(value).replace(/[&<>"']/g, char => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#039;"
-    })[char]);
-}
-
-function avatarURL(name) {
-    return `https://mc-heads.net/avatar/${encodeURIComponent(name)}/64`;
-}
-
-// ENDEREÇO DA BANDEIRA CONFORME A REGIÃO
-function flagURL(region) {
-    const code = REGION_FLAGS[region];
-
-    if (!code) {
-        return "";
-    }
-
-    return `https://flagcdn.com/w40/${code}.png`;
-}
-
-// MODAIS
-
-function openStaff() {
-    document.getElementById("loginModal").style.display =
-        staffAuthenticated ? "none" : "flex";
-
-    if (staffAuthenticated) {
-        document.getElementById("staffModal").style.display = "flex";
-    }
-}
-
-function closeModals() {
-    document.getElementById("loginModal").style.display = "none";
-    document.getElementById("staffModal").style.display = "none";
-}
-
-function checkPassword() {
-    const password = document.getElementById("staffPassword").value;
-
-    if (password !== STAFF_PASSWORD) {
-        document.getElementById("loginError").textContent =
-            "Senha incorreta!";
-        return;
-    }
-
-    staffAuthenticated = true;
-    document.getElementById("staffPassword").value = "";
-    document.getElementById("loginError").textContent = "";
-
-    document.getElementById("loginModal").style.display = "none";
-    document.getElementById("staffModal").style.display = "flex";
-
-    renderPlayers();
-}
-
-function logoutStaff() {
-    staffAuthenticated = false;
-    editingId = null;
-    resetForm();
-    closeModals();
-    renderPlayers();
-}
-
-// ABAS DO PAINEL
-
-function showAdminTab(tabId, button) {
-    document.getElementById("playerForm").classList.add("hidden");
-    document.getElementById("seasonForm").classList.add("hidden");
-
-    document.getElementById(tabId).classList.remove("hidden");
-
-    document.querySelectorAll(".admin-tab").forEach(tab => {
-        tab.classList.remove("active");
-    });
-
-    button.classList.add("active");
-}
-
-// PRÉVIA DA SKIN
-
-document.getElementById("playerName").addEventListener("input", event => {
-    const name = event.target.value.trim();
-    const preview = document.getElementById("skinPreview");
-
-    document.getElementById("skinName").textContent =
-        name || "Prévia da skin";
-
-    preview.src = name ? avatarURL(name) : "";
-    preview.style.display = name ? "block" : "none";
-});
-
-document.getElementById("skinPreview").addEventListener("error", event => {
-    event.target.style.display = "none";
-});
-
-// CADASTRO E EDIÇÃO
-
-function savePlayer(event) {
-    event.preventDefault();
-
-    if (!staffAuthenticated) {
-        alert("Apenas a staff pode realizar essa ação.");
-        return;
-    }
-
-    const name = document.getElementById("playerName").value.trim();
-    const mode = document.getElementById("playerMode").value;
-    const tier = document.getElementById("playerTier").value;
-    const points = Number(document.getElementById("playerPoints").value);
-    const region = document.getElementById("playerRegion").value;
-    const tests = Number(document.getElementById("playerTests").value);
-
-    const error = document.getElementById("formError");
-    error.textContent = "";
-
-    if (!/^[a-zA-Z0-9_]{1,16}$/.test(name)) {
-        error.textContent = "Digite um nick Minecraft válido.";
-        return;
-    }
-
-    if (!MODES.includes(mode) || !REGIONS.includes(region)) {
-        error.textContent = "Modalidade ou região inválida.";
-        return;
-    }
-
-    if (!Number.isSafeInteger(points) || points < 0 ||
-        !Number.isSafeInteger(tests) || tests < 0) {
-        error.textContent = "Pontos e testes devem ser números válidos.";
-        return;
-    }
-
-    const duplicate = players.some(player =>
-        player.name.toLowerCase() === name.toLowerCase() &&
-        player.mode === mode &&
-        player.id !== editingId
-    );
-
-    if (duplicate) {
-        error.textContent =
-            "Esse jogador já está cadastrado nesta modalidade.";
-        return;
-    }
-
-    if (editingId) {
-        const player = players.find(p => p.id === editingId);
-
-        if (!player) {
-            error.textContent = "Jogador não encontrado.";
-            return;
-        }
-
-        Object.assign(player, {
-            name,
-            mode,
-            tier,
-            points,
-            region,
-            tests
-        });
-
-    } else {
-        players.push({
-            id: crypto.randomUUID(),
-            name,
-            mode,
-            tier,
-            points,
-            region,
-            tests
-        });
-    }
-
-    const wasEditing = Boolean(editingId);
-
-    saveData();
-    resetForm();
-    renderPlayers();
-
-    alert(wasEditing ? "Jogador atualizado!" : "Jogador cadastrado!");
-
-    editingId = null;
-
-    document.getElementById("formTitle").textContent =
-        "ADICIONAR JOGADOR";
-
-    document.getElementById("saveButton").textContent =
-        "CADASTRAR JOGADOR";
-}
-
-function editPlayer(id) {
-    if (!staffAuthenticated) return;
-
-    const player = players.find(p => p.id === id);
-    if (!player) return;
-
-    editingId = id;
-
-    document.getElementById("playerName").value = player.name;
-    document.getElementById("playerMode").value = player.mode;
-    document.getElementById("playerTier").value = player.tier;
-    document.getElementById("playerPoints").value = player.points;
-    document.getElementById("playerRegion").value = player.region;
-    document.getElementById("playerTests").value = player.tests;
-
-    document.getElementById("skinPreview").src = avatarURL(player.name);
-    document.getElementById("skinPreview").style.display = "block";
-    document.getElementById("skinName").textContent = player.name;
-
-    document.getElementById("formTitle").textContent =
-        "EDITAR JOGADOR";
-
-    document.getElementById("saveButton").textContent =
-        "SALVAR ALTERAÇÕES";
-
-    document.getElementById("formError").textContent = "";
-
-    showAdminTab(
-        "playerForm",
-        document.querySelector(".admin-tab")
-    );
-
-    document.getElementById("staffModal").scrollTop = 0;
-}
-
-function resetForm() {
-    document.getElementById("playerForm").reset();
-    document.getElementById("playerPoints").value = "0";
-    document.getElementById("playerTests").value = "1";
-
-    document.getElementById("skinPreview").src = "";
-    document.getElementById("skinPreview").style.display = "none";
-    document.getElementById("skinName").textContent = "Prévia da skin";
-    document.getElementById("formError").textContent = "";
-}
-
-function cancelEdit() {
-    editingId = null;
-    resetForm();
-
-    document.getElementById("formTitle").textContent =
-        "ADICIONAR JOGADOR";
-
-    document.getElementById("saveButton").textContent =
-        "CADASTRAR JOGADOR";
-}
-
-// REMOVER JOGADOR
-
-function deletePlayer(id) {
-    if (!staffAuthenticated) return;
-
-    const player = players.find(p => p.id === id);
-    if (!player) return;
-
-    if (!confirm(`Deseja remover ${player.name} do ranking?`)) {
-        return;
-    }
-
-    players = players.filter(p => p.id !== id);
-
-    if (editingId === id) {
-        editingId = null;
-        resetForm();
-    }
-
-    saveData();
-    renderPlayers();
-}
-
-// TEMPORADA
-
-function saveSeason(event) {
-    event.preventDefault();
-
-    if (!staffAuthenticated) return;
-
-    const newSeason =
-        document.getElementById("seasonName").value.trim();
-
-    if (!newSeason || newSeason.length > 20) return;
-
-    season = newSeason;
-    localStorage.setItem("testTierSeason", season);
-
-    renderStats();
-
-    alert("Temporada atualizada!");
-}
-
-// MODALIDADES
-
-document.querySelectorAll(".mode").forEach(button => {
-    button.addEventListener("click", () => {
-        document.querySelectorAll(".mode").forEach(item => {
-            item.classList.remove("active");
-        });
-
-        button.classList.add("active");
-        currentMode = button.dataset.mode;
-
-        renderPlayers();
-    });
-});
-
-// FILTROS
-
-document.getElementById("searchInput")
-    .addEventListener("input", renderPlayers);
-
-document.getElementById("regionFilter")
-    .addEventListener("change", renderPlayers);
-
-// CONTADORES
-
-function renderStats() {
-    document.getElementById("totalPlayers").textContent =
-        players.length;
-
-    const totalTests = players.reduce(
-        (total, player) => total + (Number(player.tests) || 0),
-        0
-    );
-
-    document.getElementById("totalTests").textContent = totalTests;
-
-    document.getElementById("seasonDisplay").textContent = season;
-    document.getElementById("seasonName").value = season;
-}
-
-// RANKING
-
-function renderPlayers() {
-    renderStats();
-
-    const search = document.getElementById("searchInput")
-        .value.trim().toLowerCase();
-
-    const region = document.getElementById("regionFilter").value;
-
-    const filtered = players
-        .filter(player =>
-            currentMode === "GERAL" || player.mode === currentMode
-        )
-        .filter(player =>
-            player.name.toLowerCase().includes(search)
-        )
-        .filter(player =>
-            !region || player.region === region
-        )
-        .sort((a, b) => b.points - a.points);
-
-    const list = document.getElementById("playersList");
-
-    document.getElementById("resultCount").textContent =
-        `${filtered.length} jogador(es)`;
-
-    if (filtered.length === 0) {
-        list.innerHTML = `
-            <div class="empty">
-                Nenhum jogador encontrado nesta modalidade.
-            </div>
-        `;
-        return;
-    }
-
-    list.innerHTML = filtered.map((player, index) => {
-        const actions = staffAuthenticated
-            ? `<div class="actions">
-                <button class="edit-btn"
-                    onclick="editPlayer('${player.id}')">EDITAR</button>
-                <button class="delete-btn"
-                    onclick="deletePlayer('${player.id}')">EXCLUIR</button>
-               </div>`
-            : "—";
-
-        const flag = flagURL(player.region);
-
-        return `
-            <div class="player-row">
-                <span class="position">#${index + 1}</span>
-
-                <div class="player-info">
-                    <img
-                        src="${avatarURL(player.name)}"
-                        alt="Skin de ${escapeHTML(player.name)}"
-                        loading="lazy"
-                    >
-
-                    ${flag ? `
-                        <img
-                            class="country-flag"
-                            src="${flag}"
-                            alt="Bandeira de ${escapeHTML(player.region)}"
-                            title="${escapeHTML(player.region)}"
-                            loading="lazy"
-                        >
-                    ` : ""}
-
-                    <div>
-                        <div class="player-name">
-                            ${escapeHTML(player.name)}
-                        </div>
-                        <small style="color:#777">
-                            ${escapeHTML(player.mode)}
-                        </small>
-                    </div>
-                </div>
-
-                <span class="tier">${escapeHTML(player.tier)}</span>
-
-                <span class="points">
-                    ${Number(player.points).toLocaleString("pt-BR")} pts
-                </span>
-
-                <span class="region">
-                    ${escapeHTML(player.region)}
-                </span>
-
-                <span class="staff-column">${actions}</span>
-            </div>
-        `;
-    }).join("");
-}
-
-// INICIALIZAÇÃO
-
-renderPlayers();
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TEST TIER | Minecraft PvP Rankings</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="logo" href="#">TEST<span>TIER</span></a>
+    <div class="top-actions">
+      <span id="staffStatus" class="staff-status">VISITANTE</span>
+      <button id="loginBtn" class="outline-btn">STAFF LOGIN</button>
+      <button id="logoutBtn" class="outline-btn hidden">SAIR</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <div class="hero-tag">MINECRAFT PVP RANKINGS</div>
+      <h1>TEST <span>TIER</span></h1>
+      <p>O ranking competitivo da comunidade.</p>
+      <div class="hero-line"></div>
+    </section>
+
+    <section class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-label">MODOS</span>
+        <strong>6</strong>
+        <small>MODOS COMPETITIVOS</small>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">TEMPORADA</span>
+        <strong>S1</strong>
+        <small>TEMPORADA ATUAL</small>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">JOGADORES</span>
+        <strong id="playersCount">0</strong>
+        <small>CADASTRADOS</small>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">TESTES</span>
+        <strong id="testsCount">0</strong>
+        <small>REGISTRADOS</small>
+      </div>
+    </section>
+
+    <section class="ranking-section">
+      <div class="section-heading">
+        <div>
+          <span class="small-label">CLASSIFICAÇÃO</span>
+          <h2>PLAYER RANKING</h2>
+        </div>
+        <button id="addPlayerBtn" class="primary-btn hidden">+ ADICIONAR TESTE</button>
+      </div>
+
+      <div class="tabs" id="modeTabs">
+        <button class="tab active" data-mode="GERAL">GERAL</button>
+        <button class="tab" data-mode="CRYSTAL">CRYSTAL</button>
+        <button class="tab" data-mode="SWORD">SWORD</button>
+        <button class="tab" data-mode="SMP">SMP</button>
+        <button class="tab" data-mode="MACE">MACE</button>
+        <button class="tab" data-mode="NETHERITE POT">NETHERITE POT</button>
+        <button class="tab" data-mode="AXE">AXE</button>
+      </div>
+
+      <div class="filters">
+        <input id="searchInput" type="search" placeholder="Pesquisar jogador...">
+        <select id="regionFilter">
+          <option value="">Todas as regiões</option>
+          <option>Brasil</option>
+          <option>Estados Unidos</option>
+          <option>México</option>
+          <option>Uruguai</option>
+          <option>Equador</option>
+          <option>Venezuela</option>
+          <option>Colômbia</option>
+          <option>Chile</option>
+          <option>Argentina</option>
+          <option>Espanha</option>
+        </select>
+      </div>
+
+      <div class="ranking-header">
+        <span>#</span>
+        <span>JOGADOR</span>
+        <span>REGIÃO</span>
+        <span>PONTOS</span>
+      </div>
+
+      <div id="playersList" class="players-list">
+        <div class="loading">Carregando ranking...</div>
+      </div>
+
+      <p id="emptyMessage" class="empty-message hidden">Nenhum jogador encontrado.</p>
+      <p id="errorMessage" class="error-message hidden"></p>
+    </section>
+
+    <section class="season-section">
+      <span class="small-label">COMPETITIVO</span>
+      <h2>TEMPORADA <span>S1</span></h2>
+      <p>Os melhores jogadores da comunidade TEST TIER.</p>
+    </section>
+
+    <footer>
+      <span class="logo">TEST<span>TIER</span></span>
+      <p>TEST TIER © 2026 — Todos os direitos reservados.</p>
+    </footer>
+  </main>
+
+  <!-- LOGIN -->
+  <div id="loginModal" class="modal hidden">
+    <div class="modal-box">
+      <button class="close-btn" data-close="loginModal">×</button>
+      <span class="small-label">ÁREA RESTRITA</span>
+      <h2>STAFF LOGIN</h2>
+      <form id="loginForm">
+        <label>E-mail</label>
+        <input id="loginEmail" type="email" placeholder="Seu e-mail" required>
+        <label>Senha</label>
+        <input id="loginPassword" type="password" placeholder="Sua senha" required>
+        <button class="primary-btn full-btn" type="submit">ENTRAR</button>
+      </form>
+      <p id="loginMessage" class="form-message"></p>
+    </div>
+  </div>
+
+  <!-- ADICIONAR / EDITAR TESTE -->
+  <div id="playerModal" class="modal hidden">
+    <div class="modal-box">
+      <button class="close-btn" data-close="playerModal">×</button>
+      <span class="small-label">GERENCIAMENTO</span>
+      <h2 id="playerModalTitle">ADICIONAR TESTE</h2>
+
+      <form id="playerForm">
+        <label>Nick do Minecraft</label>
+        <input id="playerName" maxlength="16" placeholder="Ex: Steve" required>
+
+        <label>Modo testado</label>
+        <select id="playerMode" required>
+          <option value="CRYSTAL">CRYSTAL</option>
+          <option value="SWORD">SWORD</option>
+          <option value="SMP">SMP</option>
+          <option value="MACE">MACE</option>
+          <option value="NETHERITE POT">NETHERITE POT</option>
+          <option value="AXE">AXE</option>
+        </select>
+
+        <label>Tier</label>
+        <select id="playerTier" required>
+          <option>HT1</option><option>LT1</option>
+          <option>HT2</option><option>LT2</option>
+          <option>HT3</option><option>LT3</option>
+          <option>HT4</option><option>LT4</option>
+          <option>HT5</option><option>LT5</option>
+        </select>
+
+        <label>Região</label>
+        <select id="playerRegion" required>
+          <option>Brasil</option>
+          <option>Estados Unidos</option>
+          <option>México</option>
+          <option>Uruguai</option>
+          <option>Equador</option>
+          <option>Venezuela</option>
+          <option>Colômbia</option>
+          <option>Chile</option>
+          <option>Argentina</option>
+          <option>Espanha</option>
+        </select>
+
+        <label>Pontos deste modo</label>
+        <input id="playerPoints" type="number" min="0" value="0" required>
+
+        <label>Quantidade de testes neste modo</label>
+        <input id="playerTests" type="number" min="0" value="0" required>
+
+        <label>URL da skin (opcional)</label>
+        <input id="playerSkin" type="url" placeholder="https://...">
+
+        <button class="primary-btn full-btn" type="submit">SALVAR TESTE</button>
+      </form>
+      <p id="playerMessage" class="form-message"></p>
+    </div>
+  </div>
+
+  <!-- PERFIL DO JOGADOR -->
+  <div id="profileModal" class="modal hidden">
+    <div class="modal-box profile-box">
+      <button class="close-btn" data-close="profileModal">×</button>
+      <div id="profileContent"></div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
